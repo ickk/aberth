@@ -7,6 +7,7 @@ use num_complex::Complex;
 use num_traits::{
   cast,
   float::{Float, FloatConst},
+  identities::{One, Zero},
   MulAdd,
 };
 
@@ -37,8 +38,8 @@ pub fn aberth<
       let dydx_of_z = sample_polynomial(dydx, zs[i]);
       let sum = (0..zs.len())
         .filter(|&k| k != i)
-        .fold(Complex::<F>::ZERO(), |acc, k| {
-          acc + Complex::<F>::ONE() / (zs[i] - zs[k])
+        .fold(Complex::<F>::zero(), |acc, k| {
+          acc + Complex::<F>::one() / (zs[i] - zs[k])
         });
 
       let new_z = zs[i] + p_of_z / (p_of_z * sum - dydx_of_z);
@@ -189,7 +190,7 @@ pub fn sample_polynomial<F: Float + MulAdd<Output = F>>(
   coefficients: &[F],
   x: Complex<F>,
 ) -> Complex<F> {
-  let mut r = Complex::ZERO();
+  let mut r = Complex::zero();
   for c in coefficients.iter().rev() {
     r = r.mul_add(x, c.into())
   }
@@ -218,36 +219,14 @@ pub fn derivative<const TERMS: usize, F: Float>(
 
 /// Some extra methods for Complex numbers
 trait ComplexExt<F: Float> {
-  /// Cheap comparison of complex numbers to within some margin, epsilon.
   fn approx_eq(self, w: Self, epsilon: F) -> bool;
-  /// The additive identity
-  #[allow(non_snake_case)]
-  fn ZERO() -> Self;
-  /// The multiplicative identity
-  #[allow(non_snake_case)]
-  fn ONE() -> Self;
 }
 
 impl<F: Float> ComplexExt<F> for Complex<F> {
+  /// Cheap comparison of complex numbers to within some margin, epsilon.
   #[inline]
   fn approx_eq(self, w: Complex<F>, epsilon: F) -> bool {
     (self.re - w.re).abs() < epsilon && (self.im - w.im).abs() < epsilon
-  }
-
-  #[inline]
-  fn ZERO() -> Self {
-    Self {
-      re: F::zero(),
-      im: F::zero(),
-    }
-  }
-
-  #[inline]
-  fn ONE() -> Self {
-    Complex {
-      re: F::one(),
-      im: F::zero(),
-    }
   }
 }
 
@@ -356,7 +335,7 @@ mod tests {
     {
       let polynomial = [0., 1.];
       let roots = aberth(&polynomial, EPSILON).unwrap();
-      assert!(roots[0].approx_eq(Complex::ZERO(), EPSILON));
+      assert!(roots[0].approx_eq(Complex::zero(), EPSILON));
     }
 
     {
