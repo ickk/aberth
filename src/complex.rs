@@ -371,8 +371,8 @@ impl core::ops::Div<Complex<f64>> for f64 {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use core::f32::consts::{FRAC_PI_2, FRAC_PI_4, PI, SQRT_2};
   use float_cmp::assert_approx_eq;
-  use core::f32::consts::{SQRT_2, PI, FRAC_PI_2, FRAC_PI_4};
 
   const EPSILON: f32 = 0.0001;
 
