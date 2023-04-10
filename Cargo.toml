@@ -15,6 +15,3 @@ categories = ["mathematics"]
 arrayvec = "0.7"
 num-complex = "0.4"
 num-traits = "0.2"
-
-[dev-dependencies]
-float-cmp = "0.9"

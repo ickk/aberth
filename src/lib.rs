@@ -26,6 +26,8 @@ pub fn aberth<const TERMS: usize, F: Float + FloatConst>(
   let mut new_zs = zs.clone();
 
   'iteration: for _ in 0..100 {
+    let mut converged = true;
+
     for i in 0..zs.len() {
       let p_of_z = sample_polynomial(polynomial, zs[i]);
       let dydx_of_z = sample_polynomial(dydx, zs[i]);
@@ -35,23 +37,25 @@ pub fn aberth<const TERMS: usize, F: Float + FloatConst>(
           acc + Complex::<F>::ONE() / (zs[i] - zs[k])
         });
 
-      new_zs[i] = zs[i] + p_of_z / (p_of_z * sum - dydx_of_z);
-    }
-    core::mem::swap(&mut zs, &mut new_zs);
+      let new_z = zs[i] + p_of_z / (p_of_z * sum - dydx_of_z);
+      new_zs[i] = new_z;
 
-    for (&z, &new_z) in zip(&zs, &new_zs) {
-      if z.re.is_nan()
-        || z.im.is_nan()
-        || z.re.is_infinite()
-        || z.im.is_infinite()
+      if new_z.re.is_nan()
+        || new_z.im.is_nan()
+        || new_z.re.is_infinite()
+        || new_z.im.is_infinite()
       {
         break 'iteration;
       }
-      if !z.approx_eq(new_z, epsilon) {
-        continue 'iteration;
+
+      if !new_z.approx_eq(zs[i], epsilon) {
+        converged = false;
       }
     }
-    return Ok(zs);
+    if converged {
+      return Ok(new_zs);
+    }
+    core::mem::swap(&mut zs, &mut new_zs);
   }
   Err("Failed to converge.")
 }
@@ -82,9 +86,8 @@ fn initial_guesses<const TERMS: usize, F: Float + FloatConst>(
         zip(0..=coefficient_index, (0..=coefficient_index).rev()),
         PascalRowIter::new(coefficient_index as u32),
       ) {
-        let pascal = unsafe { cast(pascal).unwrap_unchecked() };
-        let val = c * pascal * a.powi(power as i32);
-        monic[index] = monic[index] + val;
+        let pascal: F = unsafe { cast(pascal).unwrap_unchecked() };
+        monic[index] = c.mul_add(pascal * a.powi(power as i32), monic[index]);
       }
     }
     monic
@@ -117,9 +120,9 @@ fn initial_guesses<const TERMS: usize, F: Float + FloatConst>(
 
     for k in 0..n {
       let k_f = unsafe { cast(k).unwrap_unchecked() };
-      let theta = frac_2pi_n * k_f + frac_pi_2n;
+      let theta = frac_2pi_n.mul_add(k_f, frac_pi_2n);
 
-      let real = a + r_0 * theta.cos();
+      let real = r_0.mul_add(theta.cos(), a);
       let imaginary = r_0 * theta.sin();
 
       let val = Complex::new(real, imaginary);
@@ -183,7 +186,7 @@ pub fn sample_polynomial<F: Float>(
     .enumerate()
     .skip(1)
     .fold(coefficients[0].into(), |acc, (power, coefficient)| {
-      acc + x.powi(power as i32) * coefficient
+      x.powi(power as i32) * coefficient + acc
     })
 }
 
@@ -208,7 +211,7 @@ pub fn derivative<const TERMS: usize, F: Float>(
 }
 
 /// Some extra methods for Complex numbers
-pub trait ComplexExt<F: Float> {
+trait ComplexExt<F: Float> {
   /// Cheap comparison of complex numbers to within some margin, epsilon.
   fn approx_eq(self, w: Self, epsilon: F) -> bool;
   /// The additive identity
@@ -217,9 +220,6 @@ pub trait ComplexExt<F: Float> {
   /// The multiplicative identity
   #[allow(non_snake_case)]
   fn ONE() -> Self;
-  /// The imaginary unit
-  #[allow(non_snake_case)]
-  fn I() -> Self;
 }
 
 impl<F: Float> ComplexExt<F> for Complex<F> {
@@ -243,20 +243,11 @@ impl<F: Float> ComplexExt<F> for Complex<F> {
       im: F::zero(),
     }
   }
-
-  #[inline]
-  fn I() -> Self {
-    Complex {
-      re: F::zero(),
-      im: F::one(),
-    }
-  }
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use float_cmp::assert_approx_eq;
   const EPSILON: f32 = 0.000_05;
   const EPSILON_64: f64 = 0.000_000_000_005;
 
@@ -271,24 +262,36 @@ mod tests {
     })
   }
 
+  fn array_approx_eq<F: Float>(lhs: &[F], rhs: &[F], epsilon: F) -> bool {
+    if lhs.len() != rhs.len() {
+      return false;
+    }
+    for i in 0..lhs.len() {
+      if (lhs[i] - rhs[i]).abs() > epsilon {
+        return false;
+      }
+    }
+    true
+  }
+
   #[test]
   fn derivative() {
     use super::derivative;
 
     {
-      let y = [0.0, 1.0, 2.0, 3.0, 4.0];
+      let y = [0., 1., 2., 3., 4.];
       let dydx = derivative(&y);
 
-      let expected = [1.0, 4.0, 9.0, 16.0];
-      assert_approx_eq!(&[f32], &dydx, &expected);
+      let expected = [1., 4., 9., 16.];
+      assert!(array_approx_eq(&dydx, &expected, EPSILON));
     }
 
     {
-      let y = [19.0, 2.3, 0.0, 8.3, 69.420];
+      let y = [19., 2.3, 0., 8.3, 69.420];
       let dydx = derivative(&y);
 
-      let expected = [2.3, 0.0, 24.9, 277.68];
-      assert_approx_eq!(&[f32], &dydx, &expected);
+      let expected = [2.3, 0., 24.9, 277.68];
+      assert!(array_approx_eq(&dydx, &expected, EPSILON));
     }
   }
 
@@ -297,7 +300,7 @@ mod tests {
     use super::sample_polynomial;
 
     {
-      let y = [0.0, 1.0, 2.0, 3.0, 4.0];
+      let y = [0., 1., 2., 3., 4.];
 
       let x_0 = 0.0.into();
       let y_0 = sample_polynomial(&y, x_0);
@@ -321,7 +324,7 @@ mod tests {
     }
 
     {
-      let y = [19.0, 2.3, 0.0, 8.3, 69.420];
+      let y = [19., 2.3, 0., 8.3, 69.420];
 
       let x_0 = 0.0.into();
       let y_0 = sample_polynomial(&y, x_0);
@@ -345,13 +348,13 @@ mod tests {
     use super::*;
 
     {
-      let polynomial = [0.0, 1.0];
+      let polynomial = [0., 1.];
       let roots = aberth(&polynomial, EPSILON).unwrap();
       assert!(roots[0].approx_eq(Complex::ZERO(), EPSILON));
     }
 
     {
-      let polynomial = [1.0, 0.0, -1.0];
+      let polynomial = [1., 0., -1.];
       let roots = aberth(&polynomial, EPSILON).unwrap();
       let expected = [1.0.into(), (-1.0).into()];
       assert!(unsorted_compare(&roots, &expected, EPSILON));
@@ -359,7 +362,7 @@ mod tests {
 
     {
       // x^3 -12x^2 + 39x - 28 = 0
-      let polynomial = [-28.0, 39.0, -12.0, 1.0];
+      let polynomial = [-28., 39., -12., 1.];
 
       let roots = aberth(&polynomial, EPSILON).unwrap();
       let expected = [7.0.into(), 4.0.into(), 1.0.into()];
@@ -367,7 +370,7 @@ mod tests {
     }
     {
       // 2x^3 - 38x^2 + 228x - 432 = 0
-      let polynomial = [-432.0, 228.0, -38.0, 2.0];
+      let polynomial = [-432., 228., -38., 2.];
 
       let roots = aberth(&polynomial, EPSILON).unwrap();
       let expected = [9.0.into(), 6.0.into(), 4.0.into()];
@@ -375,19 +378,19 @@ mod tests {
     }
     {
       // x^3 + 8 = 0
-      let polynomial = [8.0, 0.0, 0.0, 1.0];
+      let polynomial = [8., 0., 0., 1.];
 
       let roots = aberth(&polynomial, EPSILON).unwrap();
       let expected = [
-        (-2.0).into(),
-        Complex::new(1.0, -3f32.sqrt()),
-        Complex::new(1.0, 3f32.sqrt()),
+        (-2.).into(),
+        Complex::new(1., -3f32.sqrt()),
+        Complex::new(1., 3f32.sqrt()),
       ];
       assert!(unsorted_compare(&roots, &expected, EPSILON));
     }
     {
       // 11x^9 + 4x^4 + 2x - 1 = 0
-      let polynomial = [-1.0, 2.0, 0.0, 0.0, 4.0, 0.0, 0.0, 0.0, 0.0, 11.0];
+      let polynomial = [-1., 2., 0., 0., 4., 0., 0., 0., 0., 11.];
 
       let roots = aberth(&polynomial, EPSILON).unwrap();
       let expected = [
@@ -409,8 +412,8 @@ mod tests {
       //     - 10x^9  +  9x^8  -  8x^7  +  7x^6  -  6x^5
       //     +  5x^4  -  4x^3  +  3x^2  -  2x    +  1
       let polynomial = [
-        1.0, -2.0, 3.0, -4.0, 5.0, -6.0, 7.0, -8.0, 9.0, -10.0, 11.0, -12.0,
-        13.0, -14.0, 15.0, -16.0, 17.0, -18.0, 19.0, -20.0,
+        1., -2., 3., -4., 5., -6., 7., -8., 9., -10., 11., -12., 13., -14.,
+        15., -16., 17., -18., 19., -20.,
       ];
 
       let roots = aberth(&polynomial, EPSILON).unwrap();
@@ -449,8 +452,8 @@ mod tests {
       //     - 10x^9  +  9x^8  -  8x^7  +  7x^6  -  6x^5
       //     +  5x^4  -  4x^3  +  3x^2  -  2x    +  1
       let polynomial: [f64; 20] = [
-        1.0, -2.0, 3.0, -4.0, 5.0, -6.0, 7.0, -8.0, 9.0, -10.0, 11.0, -12.0,
-        13.0, -14.0, 15.0, -16.0, 17.0, -18.0, 19.0, -20.0,
+        1., -2., 3., -4., 5., -6., 7., -8., 9., -10., 11., -12., 13., -14.,
+        15., -16., 17., -18., 19., -20.,
       ];
 
       let roots = aberth(&polynomial, EPSILON_64).unwrap();
@@ -535,6 +538,14 @@ mod tests {
         .into_inner()
         .unwrap();
       let expected = [1, 6, 15, 20, 15, 6, 1];
+      assert_eq!(row, expected);
+    }
+    {
+      let row = PascalRowIter::new(9)
+        .collect::<ArrayVec<_, 10>>()
+        .into_inner()
+        .unwrap();
+      let expected = [1, 9, 36, 84, 126, 126, 84, 36, 9, 1];
       assert_eq!(row, expected);
     }
   }

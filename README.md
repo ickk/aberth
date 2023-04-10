@@ -10,11 +10,10 @@ negative charges and the true zeros as positive charges. This enables
 finding all complex roots simultaneously, converging cubically (worst-case it
 converges linearly for zeros of multiplicity).
 
-This crate is `#![no_std]` and tries to have minimal dependencies.
-It uses:
-[num-complex](https://crates.io/crates/num-complex) for a Complex number type.
-[arrayvec](https://crates.io/crates/arrayvec) to avoid allocations.
-[num-traits](https://crates.io/crates/num-traits) to be generic over floating
+This crate is `#![no_std]` and tries to have minimal dependencies:
+- [num-complex](https://crates.io/crates/num-complex) for Complex number types
+- [arrayvec](https://crates.io/crates/arrayvec) to avoid allocations
+- [num-traits](https://crates.io/crates/num-traits) to be generic over floating
 point types.
 
 
@@ -37,15 +36,15 @@ let polynomial = [-1., 2., 0., 0., 4., 0., 0., 0., 0., 11.];
 
 let roots = aberth(&polynomial, EPSILON).unwrap();
 // [
-//   Complex { real:  0.4293261, imaginary:  1.084202e-19 },
-//   Complex { real:  0.7263235, imaginary:  0.4555030 },
-//   Complex { real:  0.2067199, imaginary:  0.6750696 },
-//   Complex { real: -0.3448952, imaginary:  0.8425941 },
-//   Complex { real: -0.8028113, imaginary:  0.2296336 },
-//   Complex { real: -0.8028113, imaginary: -0.2296334 },
-//   Complex { real: -0.3448952, imaginary: -0.8425941 },
-//   Complex { real:  0.2067200, imaginary: -0.6750695 },
-//   Complex { real:  0.7263235, imaginary: -0.4555030 },
+//   Complex { re:  0.4293261, im:  1.084202e-19 },
+//   Complex { re:  0.7263235, im:  0.4555030 },
+//   Complex { re:  0.2067199, im:  0.6750696 },
+//   Complex { re: -0.3448952, im:  0.8425941 },
+//   Complex { re: -0.8028113, im:  0.2296336 },
+//   Complex { re: -0.8028113, im: -0.2296334 },
+//   Complex { re: -0.3448952, im: -0.8425941 },
+//   Complex { re:  0.2067200, im: -0.6750695 },
+//   Complex { re:  0.7263235, im: -0.4555030 },
 // ]
 ```
 
