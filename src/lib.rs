@@ -7,6 +7,7 @@ use num_complex::Complex;
 use num_traits::{
   cast,
   float::{Float, FloatConst},
+  MulAdd,
 };
 
 /// Find all of the roots of a polynomial using Aberth's method.
@@ -17,7 +18,10 @@ use num_traits::{
 ///
 /// When two successive iterations produce roots with less than `epsilon`
 /// delta, the roots are returned.
-pub fn aberth<const TERMS: usize, F: Float + FloatConst>(
+pub fn aberth<
+  const TERMS: usize,
+  F: Float + FloatConst + MulAdd<Output = F>,
+>(
   polynomial: &[F; TERMS],
   epsilon: F,
 ) -> Result<ArrayVec<Complex<F>, TERMS>, &'static str> {
@@ -62,7 +66,10 @@ pub fn aberth<const TERMS: usize, F: Float + FloatConst>(
 
 // Initial guesses using the method from "Iteration Methods for Finding all
 // Zeros of a Polynomial Simultaneously" by Oliver Aberth.
-fn initial_guesses<const TERMS: usize, F: Float + FloatConst>(
+fn initial_guesses<
+  const TERMS: usize,
+  F: Float + FloatConst + MulAdd<Output = F>,
+>(
   polynomial: &[F; TERMS],
 ) -> ArrayVec<Complex<F>, TERMS> {
   // the degree of the polynomial
@@ -87,7 +94,8 @@ fn initial_guesses<const TERMS: usize, F: Float + FloatConst>(
         PascalRowIter::new(coefficient_index as u32),
       ) {
         let pascal: F = unsafe { cast(pascal).unwrap_unchecked() };
-        monic[index] = c.mul_add(pascal * a.powi(power as i32), monic[index]);
+        monic[index] =
+          MulAdd::mul_add(c, pascal * a.powi(power as i32), monic[index]);
       }
     }
     monic
@@ -120,9 +128,9 @@ fn initial_guesses<const TERMS: usize, F: Float + FloatConst>(
 
     for k in 0..n {
       let k_f = unsafe { cast(k).unwrap_unchecked() };
-      let theta = frac_2pi_n.mul_add(k_f, frac_pi_2n);
+      let theta = MulAdd::mul_add(frac_2pi_n, k_f, frac_pi_2n);
 
-      let real = r_0.mul_add(theta.cos(), a);
+      let real = MulAdd::mul_add(r_0, theta.cos(), a);
       let imaginary = r_0 * theta.sin();
 
       let val = Complex::new(real, imaginary);
@@ -172,22 +180,20 @@ impl Iterator for PascalRowIter {
   }
 }
 
-/// Return the value of the polynomial at some value of `x`.
+/// Sample the polynomial at some value of `x` using Horner's method.
 ///
 /// Polynomial of the form f(x) = a + b*x + c*x^2 + d*x^3 + ...
 ///
 /// `coefficients` is a slice containing the coefficients [a, b, c, d, ...]
-pub fn sample_polynomial<F: Float>(
+pub fn sample_polynomial<F: Float + MulAdd<Output = F>>(
   coefficients: &[F],
   x: Complex<F>,
 ) -> Complex<F> {
-  coefficients
-    .iter()
-    .enumerate()
-    .skip(1)
-    .fold(coefficients[0].into(), |acc, (power, coefficient)| {
-      x.powi(power as i32) * coefficient + acc
-    })
+  let mut r = Complex::ZERO();
+  for c in coefficients.iter().rev() {
+    r = r.mul_add(x, c.into())
+  }
+  r
 }
 
 /// Compute the derivative of a polynomial.
