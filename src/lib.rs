@@ -3,13 +3,11 @@
 
 use arrayvec::ArrayVec;
 use core::iter::zip;
+use num_complex::Complex;
 use num_traits::{
   cast,
   float::{Float, FloatConst},
 };
-
-pub mod complex;
-pub use complex::Complex;
 
 /// Find all of the roots of a polynomial using Aberth's method.
 ///
@@ -31,8 +29,8 @@ pub fn aberth<const TERMS: usize, F: Float + FloatConst>(
       let dydx_of_z = sample_polynomial(dydx, zs[i]);
       let sum = (0..zs.len())
         .filter(|&k| k != i)
-        .fold(Complex::ZERO(), |acc, k| {
-          acc + Complex::ONE() / (zs[i] - zs[k])
+        .fold(Complex::<F>::ZERO(), |acc, k| {
+          acc + Complex::<F>::ONE() / (zs[i] - zs[k])
         });
 
       new_zs[i] = zs[i] + p_of_z / (p_of_z * sum - dydx_of_z);
@@ -40,10 +38,10 @@ pub fn aberth<const TERMS: usize, F: Float + FloatConst>(
     core::mem::swap(&mut zs, &mut new_zs);
 
     for (&z, &new_z) in core::iter::zip(&zs, &new_zs) {
-      if z.real().is_nan()
-        || z.imaginary().is_nan()
-        || z.real().is_infinite()
-        || z.imaginary().is_infinite()
+      if z.re.is_nan()
+        || z.im.is_nan()
+        || z.re.is_infinite()
+        || z.im.is_infinite()
       {
         break 'iteration;
       }
@@ -102,7 +100,7 @@ fn initial_guesses<const TERMS: usize, F: Float + FloatConst>(
   let mut int = F::one();
   let r_0 = loop {
     let s_at_r0 = sample_polynomial(&s_of_w, int.into());
-    if s_at_r0.real() > F::zero() {
+    if s_at_r0.re > F::zero() {
       break int;
     }
     int = int + F::one();
@@ -207,6 +205,47 @@ pub fn derivative<const TERMS: usize, F: Float>(
     .collect()
 }
 
+pub trait ComplexExt<F: Float> {
+  fn approx_eq(self, w: Self, epsilon: F) -> bool;
+  #[allow(non_snake_case)]
+  fn ZERO() -> Self;
+  #[allow(non_snake_case)]
+  fn ONE() -> Self;
+  #[allow(non_snake_case)]
+  fn I() -> Self;
+}
+
+impl<F: Float> ComplexExt<F> for Complex<F> {
+  #[inline]
+  fn approx_eq(self, w: Complex<F>, epsilon: F) -> bool {
+    (self.re - w.re).abs() < epsilon && (self.im - w.im).abs() < epsilon
+  }
+
+  #[inline]
+  fn ZERO() -> Self {
+    Self {
+      re: F::zero(),
+      im: F::zero(),
+    }
+  }
+
+  #[inline]
+  fn ONE() -> Self {
+    Complex {
+      re: F::one(),
+      im: F::zero(),
+    }
+  }
+
+  #[inline]
+  fn I() -> Self {
+    Complex {
+      re: F::zero(),
+      im: F::one(),
+    }
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -296,7 +335,7 @@ mod tests {
 
   #[test]
   fn aberth() {
-    use super::aberth;
+    use super::*;
 
     {
       let polynomial = [0.0, 1.0];

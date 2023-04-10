@@ -10,8 +10,10 @@ negative charges and the true zeros as positive charges. This enables
 finding all complex roots simultaneously, converging cubically (worst-case it
 converges linearly for zeros of multiplicity).
 
-This crate is `#![no_std]` & tries to have minimal dependencies. It uses
-[arrayvec](https://crates.io/crates/arrayvec) to avoid allocations and
+This crate is `#![no_std]` and tries to have minimal dependencies.
+It uses:
+[num-complex](https://crates.io/crates/num-complex) for a Complex number type.
+[arrayvec](https://crates.io/crates/arrayvec) to avoid allocations.
 [num-traits](https://crates.io/crates/num-traits) to be generic over floating
 point types.
 
@@ -24,15 +26,14 @@ Add it to your project:
 cargo add aberth
 ```
 
-Specify the coefficients of your polynomial in an array
-```rust
-// 0 = -1 + 2x + 4x^4 + 11x^9
-let polynomial = [-1., 2., 0., 0., 4., 0., 0., 0., 0., 11.];
-```
-
-Call the `aberth` method on your polynomial & provide an epsilon value.
+Specify the coefficients of your polynomial in an array in ascending order
+and then call the `aberth` method on your polynomial.
 ```rust
 use aberth::aberth;
+const EPSILON: f32 = 0.001;
+
+// 0 = -1 + 2x + 4x^4 + 11x^9
+let polynomial = [-1., 2., 0., 0., 4., 0., 0., 0., 0., 11.];
 
 let roots = aberth(&polynomial, EPSILON).unwrap();
 // [

@@ -1,6 +1,6 @@
 [package]
 name = "aberth"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2021"
 authors = ["ickk <crates@ickk.io>"]
 license = "MIT OR Apache-2.0"
@@ -13,6 +13,7 @@ categories = ["mathematics"]
 
 [dependencies]
 arrayvec = "0.7"
+num-complex = "0.4"
 num-traits = "0.2"
 
 [dev-dependencies]
