@@ -12,7 +12,9 @@ use num_traits::{
 /// Find all of the roots of a polynomial using Aberth's method.
 ///
 /// Polynomial of the form f(x) = a + b*x + c*x^2 + d*x^3 + ...
+///
 /// `polynomial` is a slice containing the coefficients [a, b, c, d, ...]
+///
 /// When two successive iterations produce roots with less than `epsilon`
 /// delta, the roots are returned.
 pub fn aberth<const TERMS: usize, F: Float + FloatConst>(
@@ -37,7 +39,7 @@ pub fn aberth<const TERMS: usize, F: Float + FloatConst>(
     }
     core::mem::swap(&mut zs, &mut new_zs);
 
-    for (&z, &new_z) in core::iter::zip(&zs, &new_zs) {
+    for (&z, &new_z) in zip(&zs, &new_zs) {
       if z.re.is_nan()
         || z.im.is_nan()
         || z.re.is_infinite()
@@ -129,7 +131,7 @@ fn initial_guesses<const TERMS: usize, F: Float + FloatConst>(
   }
 }
 
-/// An iterator for a particular row of Pascal's Triangle.
+/// An iterator over the numbers in a row of Pascal's Triangle.
 pub struct PascalRowIter {
   n: u32,
   k: u32,
@@ -137,6 +139,8 @@ pub struct PascalRowIter {
 }
 
 impl PascalRowIter {
+  /// Create an iterator yielding the numbers in the nth row of Pascal's
+  /// triangle.
   pub fn new(n: u32) -> Self {
     Self {
       n,
@@ -144,8 +148,12 @@ impl PascalRowIter {
       previous: 1,
     }
   }
+}
 
-  pub fn next(&mut self) -> Option<u32> {
+impl Iterator for PascalRowIter {
+  type Item = u32;
+
+  fn next(&mut self) -> Option<Self::Item> {
     if self.k == 0 {
       self.k = 1;
       self.previous = 1;
@@ -157,21 +165,14 @@ impl PascalRowIter {
     let new = self.previous * (self.n + 1 - self.k) / self.k;
     self.k += 1;
     self.previous = new;
-    return Some(new);
-  }
-}
-
-impl Iterator for PascalRowIter {
-  type Item = u32;
-
-  fn next(&mut self) -> Option<Self::Item> {
-    self.next()
+    Some(new)
   }
 }
 
 /// Return the value of the polynomial at some value of `x`.
 ///
 /// Polynomial of the form f(x) = a + b*x + c*x^2 + d*x^3 + ...
+///
 /// `coefficients` is a slice containing the coefficients [a, b, c, d, ...]
 pub fn sample_polynomial<F: Float>(
   coefficients: &[F],
@@ -189,6 +190,7 @@ pub fn sample_polynomial<F: Float>(
 /// Compute the derivative of a polynomial.
 ///
 /// Polynomial of the form f(x) = a + b*x + c*x^2 + d*x^3 + ...
+///
 /// `coefficients` is a slice containing the coefficients [a, b, c, d, ...]
 /// starting from the coefficient of the x with degree 0.
 pub fn derivative<const TERMS: usize, F: Float>(
@@ -205,12 +207,17 @@ pub fn derivative<const TERMS: usize, F: Float>(
     .collect()
 }
 
+/// Some extra methods for Complex numbers
 pub trait ComplexExt<F: Float> {
+  /// Cheap comparison of complex numbers to within some margin, epsilon.
   fn approx_eq(self, w: Self, epsilon: F) -> bool;
+  /// The additive identity
   #[allow(non_snake_case)]
   fn ZERO() -> Self;
+  /// The multiplicative identity
   #[allow(non_snake_case)]
   fn ONE() -> Self;
+  /// The imaginary unit
   #[allow(non_snake_case)]
   fn I() -> Self;
 }
