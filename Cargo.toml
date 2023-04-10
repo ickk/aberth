@@ -1,8 +1,19 @@
 [package]
 name = "aberth"
-version = "0.0.0"
+version = "0.0.1"
 edition = "2021"
+authors = ["ickk <crates@ickk.io>"]
 license = "MIT OR Apache-2.0"
-description = "aberth"
+description = "Aberth's method for finding the zeros of a polynomial"
+documentation = "https://docs.rs/aberth"
+repository = "https://github.com/ickk/aberth/"
+readme = "README.md"
+keywords = ["zeros", "roots", "polynomial"]
+categories = ["mathematics"]
 
 [dependencies]
+arrayvec = "0.7"
+num-traits = "0.2"
+
+[dev-dependencies]
+float-cmp = "0.9"
