@@ -27,7 +27,7 @@ cargo add aberth
 Specify the coefficients of your polynomial in an array
 ```rust
 // 0 = -1 + 2x + 4x^4 + 11x^9
-let polynomial = [-1.0, 2.0, 0.0, 0.0, 4.0, 0.0, 0.0, 0.0, 0.0, 11.0];
+let polynomial = [-1., 2., 0., 0., 4., 0., 0., 0., 0., 11.];
 ```
 
 Call the `aberth` method on your polynomial & provide an epsilon value.

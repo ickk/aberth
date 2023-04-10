@@ -1,4 +1,5 @@
 #![no_std]
+#![doc = include_str!("../README.md")]
 
 use arrayvec::ArrayVec;
 use core::iter::zip;
