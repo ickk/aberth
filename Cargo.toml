@@ -8,10 +8,15 @@ description = "Aberth's method for finding the zeros of a polynomial"
 documentation = "https://docs.rs/aberth"
 repository = "https://github.com/ickk/aberth/"
 readme = "README.md"
-keywords = ["polynomial", "root-finding"]
+keywords = ["no_std", "polynomial", "root-finding"]
 categories = ["mathematics"]
 
 [dependencies]
-arrayvec = "0.7"
-num-complex = "0.4"
-num-traits = "0.2"
+arrayvec = { version = "0.7", default-features = false }
+num-complex = { version = "0.4", default-features = false }
+num-traits = { version = "0.2", default-features = false }
+
+[features]
+default = ["std"]
+std = ["arrayvec/default", "num-complex/default", "num-traits/default"]
+libm = ["num-traits/libm"]

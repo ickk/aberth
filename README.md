@@ -58,6 +58,17 @@ The coefficient of the highest degree term should not be zero or you will get
 nonsense extra roots (probably at 0 + 0j).
 
 
+`#![no_std]`
+--------
+
+To use in a `no_std` environment you must disable `default-features` and enable
+the `libm` feature:
+```toml
+[dependencies]
+aberth = { version = "0.0.4", default-features = false, features = ["libm"] }
+```
+
+
 License
 -------
 
