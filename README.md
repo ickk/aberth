@@ -12,7 +12,6 @@ converges linearly for zeros of multiplicity).
 
 This crate is `#![no_std]` and tries to have minimal dependencies:
 - [num-complex](https://crates.io/crates/num-complex) for Complex number types
-- [arrayvec](https://crates.io/crates/arrayvec) to avoid allocations
 - [num-traits](https://crates.io/crates/num-traits) to be generic over floating
 point types.
 

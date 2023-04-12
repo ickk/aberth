@@ -12,11 +12,10 @@ keywords = ["no_std", "polynomial", "root-finding"]
 categories = ["mathematics"]
 
 [dependencies]
-arrayvec = { version = "0.7", default-features = false }
 num-complex = { version = "0.4", default-features = false }
 num-traits = { version = "0.2", default-features = false }
 
 [features]
 default = ["std"]
-std = ["arrayvec/default", "num-complex/default", "num-traits/default"]
+std = ["num-complex/default", "num-traits/default"]
 libm = ["num-traits/libm"]

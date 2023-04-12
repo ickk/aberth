@@ -1,8 +1,11 @@
 #![no_std]
 #![doc = include_str!("../README.md")]
+// Unstable features
+#![allow(incomplete_features)]
+#![feature(generic_const_exprs)]
+#![feature(maybe_uninit_array_assume_init)]
 
-use arrayvec::ArrayVec;
-use core::iter::zip;
+use core::{iter::zip, mem::MaybeUninit};
 use num_complex::Complex;
 use num_traits::{
   cast,
@@ -25,9 +28,9 @@ pub fn aberth<
 >(
   polynomial: &[F; TERMS],
   epsilon: F,
-) -> Result<ArrayVec<Complex<F>, TERMS>, &'static str> {
+) -> Result<[Complex<F>; TERMS - 1], &'static str> {
   let dydx = &derivative(polynomial);
-  let mut zs: ArrayVec<Complex<F>, TERMS> = initial_guesses(polynomial);
+  let mut zs: [Complex<F>; TERMS - 1] = initial_guesses(polynomial);
   let mut new_zs = zs.clone();
 
   'iteration: for _ in 0..100 {
@@ -72,20 +75,16 @@ fn initial_guesses<
   F: Float + FloatConst + MulAdd<Output = F>,
 >(
   polynomial: &[F; TERMS],
-) -> ArrayVec<Complex<F>, TERMS> {
+) -> [Complex<F>; TERMS - 1] {
   // the degree of the polynomial
   let n = polynomial.len() - 1;
   let n_f = unsafe { cast(n).unwrap_unchecked() };
   // convert polynomial to monic form
-  let mut monic: ArrayVec<F, TERMS> = ArrayVec::new();
-  for c in polynomial {
-    // SAFETY: we push only as many values as there are terms.
-    unsafe { monic.push_unchecked(*c / polynomial[n]) };
-  }
+  let mut monic = polynomial.map(|c| c / polynomial[n]);
   // let a = - c_1 / n
   let a = -monic[n - 1] / n_f;
   // let z = w + a,
-  let p_of_w = {
+  let r_0 = {
     // we can recycle monic on the fly.
     for coefficient_index in 0..=n {
       let c = monic[coefficient_index];
@@ -99,30 +98,25 @@ fn initial_guesses<
           MulAdd::mul_add(c, pascal * a.powi(power as i32), monic[index]);
       }
     }
-    monic
-  };
-  // convert P(w) into S(w)
-  let s_of_w = {
-    let mut p = p_of_w;
+    // convert P(w) into S(w)
     // skip the last coefficient
     for i in 0..n {
-      p[i] = -p[i].abs()
+      monic[i] = -monic[i].abs()
     }
-    p
-  };
-  // find r_0
-  let mut int = F::one();
-  let r_0 = loop {
-    let s_at_r0 = sample_polynomial(&s_of_w, int.into());
-    if s_at_r0.re > F::zero() {
-      break int;
+    let s_of_w = monic;
+    // find r_0
+    let mut int = F::one();
+    loop {
+      let s_at_r0 = sample_polynomial(&s_of_w, int.into());
+      if s_at_r0.re > F::zero() {
+        break int;
+      }
+      int = int + F::one();
     }
-    int = int + F::one();
   };
-  drop(s_of_w);
 
   {
-    let mut guesses: ArrayVec<Complex<F>, TERMS> = ArrayVec::new();
+    let mut guesses = [Complex::zero(); TERMS - 1];
 
     let frac_2pi_n = F::TAU() / n_f;
     let frac_pi_2n = F::FRAC_PI_2() / n_f;
@@ -134,9 +128,7 @@ fn initial_guesses<
       let real = MulAdd::mul_add(r_0, theta.cos(), a);
       let imaginary = r_0 * theta.sin();
 
-      let val = Complex::new(real, imaginary);
-      // SAFETY: we push 1 less values than there are terms.
-      unsafe { guesses.push_unchecked(val) };
+      guesses[k] = Complex::new(real, imaginary);
     }
 
     guesses
@@ -186,10 +178,19 @@ impl Iterator for PascalRowIter {
 /// Polynomial of the form f(x) = a + b*x + c*x^2 + d*x^3 + ...
 ///
 /// `coefficients` is a slice containing the coefficients [a, b, c, d, ...]
-pub fn sample_polynomial<F: Float + MulAdd<Output = F>>(
-  coefficients: &[F],
+#[inline]
+pub fn sample_polynomial<
+  const TERMS: usize,
+  F: Float + MulAdd<Output = F>,
+>(
+  coefficients: &[F; TERMS],
   x: Complex<F>,
 ) -> Complex<F> {
+  // Fail to compile with an empty coefficients argument.
+  let _ = {
+    let _empty_coefficients_array = |_: [(); TERMS - 1]| {};
+  };
+
   let mut r = Complex::zero();
   for c in coefficients.iter().rev() {
     r = r.mul_add(x, c.into())
@@ -203,18 +204,23 @@ pub fn sample_polynomial<F: Float + MulAdd<Output = F>>(
 ///
 /// `coefficients` is a slice containing the coefficients [a, b, c, d, ...]
 /// starting from the coefficient of the x with degree 0.
+#[inline]
 pub fn derivative<const TERMS: usize, F: Float>(
   coefficients: &[F; TERMS],
-) -> ArrayVec<F, TERMS> {
-  coefficients
+) -> [F; TERMS - 1] {
+  let mut derivative: [MaybeUninit<F>; TERMS - 1] =
+    unsafe { [MaybeUninit::uninit().assume_init(); TERMS - 1] };
+  for ((power, &coefficient), d) in coefficients
     .iter()
     .enumerate()
     .skip(1)
-    .map(|(power, &coefficient)| {
-      let p = unsafe { F::from(power).unwrap_unchecked() };
-      p * coefficient
-    })
-    .collect()
+    .zip(derivative.iter_mut())
+  {
+    let p_f = unsafe { F::from(power).unwrap_unchecked() };
+    d.write(p_f * coefficient);
+  }
+  // SAFETY: we initialised every value of the derivative (TERMS-1 values)
+  unsafe { MaybeUninit::array_assume_init(derivative) }
 }
 
 /// Some extra methods for Complex numbers
@@ -230,8 +236,11 @@ impl<F: Float> ComplexExt<F> for Complex<F> {
   }
 }
 
-#[cfg(test)]
+#[cfg(any(test, doctest))]
 mod tests {
+  extern crate std;
+  use std::prelude::rust_2021::*;
+
   use super::*;
   const EPSILON: f32 = 0.000_05;
   const EPSILON_64: f64 = 0.000_000_000_005;
@@ -259,6 +268,14 @@ mod tests {
     true
   }
 
+  /// ```compile_fail,E0080
+  /// use aberth::derivative;
+  ///
+  /// let y = [];
+  /// let dydx = derivative(&y);
+  /// ```
+  fn _derivative_empty_array() {}
+
   #[test]
   fn derivative() {
     use super::derivative;
@@ -280,9 +297,25 @@ mod tests {
     }
   }
 
+  /// ```compile_fail,E0080
+  /// use aberth::sample_polynomial;
+  ///
+  /// let y = [];
+  /// let y_0 = sample_polynomial(&y, 0.0.into());
+  /// ```
+  fn _sample_polynomial_empty_array() {}
+
   #[test]
   fn sample_polynomial() {
     use super::sample_polynomial;
+
+    {
+      let y = [42.0];
+      let x_0 = 0.0.into();
+      let y_0 = sample_polynomial(&y, x_0);
+      let expected = 42.0.into();
+      assert!(y_0.approx_eq(expected, EPSILON));
+    }
 
     {
       let y = [0., 1., 2., 3., 4.];
@@ -328,12 +361,20 @@ mod tests {
     }
   }
 
+  /// ```compile_fail,E0080
+  /// use aberth::aberth;
+  ///
+  /// let y = [];
+  /// let dydx = aberth(&y, 0.1);
+  /// ```
+  fn _aberth_empty_array() {}
+
   #[test]
   fn aberth() {
     use super::*;
 
     {
-      let polynomial = [0., 1.];
+      let polynomial = [0f32, 1.];
       let roots = aberth(&polynomial, EPSILON).unwrap();
       assert!(roots[0].approx_eq(Complex::zero(), EPSILON));
     }
@@ -469,67 +510,44 @@ mod tests {
 
   #[test]
   fn pascal_triangle() {
+    use std::vec::Vec;
     {
-      let row = PascalRowIter::new(0)
-        .collect::<ArrayVec<_, 1>>()
-        .into_inner()
-        .unwrap();
+      let row = PascalRowIter::new(0).collect::<Vec<_>>();
       let expected = [1];
       assert_eq!(row, expected);
     }
     {
-      let row = PascalRowIter::new(1)
-        .collect::<ArrayVec<_, 2>>()
-        .into_inner()
-        .unwrap();
+      let row = PascalRowIter::new(1).collect::<Vec<_>>();
       let expected = [1, 1];
       assert_eq!(row, expected);
     }
     {
-      let row = PascalRowIter::new(2)
-        .collect::<ArrayVec<_, 3>>()
-        .into_inner()
-        .unwrap();
+      let row = PascalRowIter::new(2).collect::<Vec<_>>();
       let expected = [1, 2, 1];
       assert_eq!(row, expected);
     }
     {
-      let row = PascalRowIter::new(3)
-        .collect::<ArrayVec<_, 4>>()
-        .into_inner()
-        .unwrap();
+      let row = PascalRowIter::new(3).collect::<Vec<_>>();
       let expected = [1, 3, 3, 1];
       assert_eq!(row, expected);
     }
     {
-      let row = PascalRowIter::new(4)
-        .collect::<ArrayVec<_, 5>>()
-        .into_inner()
-        .unwrap();
+      let row = PascalRowIter::new(4).collect::<Vec<_>>();
       let expected = [1, 4, 6, 4, 1];
       assert_eq!(row, expected);
     }
     {
-      let row = PascalRowIter::new(5)
-        .collect::<ArrayVec<_, 6>>()
-        .into_inner()
-        .unwrap();
+      let row = PascalRowIter::new(5).collect::<Vec<_>>();
       let expected = [1, 5, 10, 10, 5, 1];
       assert_eq!(row, expected);
     }
     {
-      let row = PascalRowIter::new(6)
-        .collect::<ArrayVec<_, 7>>()
-        .into_inner()
-        .unwrap();
+      let row = PascalRowIter::new(6).collect::<Vec<_>>();
       let expected = [1, 6, 15, 20, 15, 6, 1];
       assert_eq!(row, expected);
     }
     {
-      let row = PascalRowIter::new(9)
-        .collect::<ArrayVec<_, 10>>()
-        .into_inner()
-        .unwrap();
+      let row = PascalRowIter::new(9).collect::<Vec<_>>();
       let expected = [1, 9, 36, 84, 126, 126, 84, 36, 9, 1];
       assert_eq!(row, expected);
     }
