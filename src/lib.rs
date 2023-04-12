@@ -1,5 +1,6 @@
 #![no_std]
 #![doc = include_str!("../README.md")]
+#![allow(clippy::len_zero)]
 
 use arrayvec::ArrayVec;
 use core::iter::zip;
@@ -190,6 +191,7 @@ pub fn sample_polynomial<F: Float + MulAdd<Output = F>>(
   coefficients: &[F],
   x: Complex<F>,
 ) -> Complex<F> {
+  debug_assert!(coefficients.len() != 0);
   let mut r = Complex::zero();
   for c in coefficients.iter().rev() {
     r = r.mul_add(x, c.into())
@@ -206,6 +208,7 @@ pub fn sample_polynomial<F: Float + MulAdd<Output = F>>(
 pub fn derivative<const TERMS: usize, F: Float>(
   coefficients: &[F; TERMS],
 ) -> ArrayVec<F, TERMS> {
+  debug_assert!(coefficients.len() != 0);
   coefficients
     .iter()
     .enumerate()
@@ -230,7 +233,7 @@ impl<F: Float> ComplexExt<F> for Complex<F> {
   }
 }
 
-#[cfg(test)]
+#[cfg(any(test, doctest))]
 mod tests {
   use super::*;
   const EPSILON: f32 = 0.000_05;
@@ -259,6 +262,14 @@ mod tests {
     true
   }
 
+  /// ```should_panic
+  /// use aberth::derivative;
+  ///
+  /// let y: [f32; 0] = [];
+  /// let dydx = derivative(&y);
+  /// ```
+  fn _derivative_empty_array() {}
+
   #[test]
   fn derivative() {
     use super::derivative;
@@ -279,6 +290,14 @@ mod tests {
       assert!(array_approx_eq(&dydx, &expected, EPSILON));
     }
   }
+
+  /// ```should_panic
+  /// use aberth::sample_polynomial;
+  ///
+  /// let y = [];
+  /// let y_0 = sample_polynomial(&y, 0.0.into());
+  /// ```
+  fn _sample_polynomial_empty_array() {}
 
   #[test]
   fn sample_polynomial() {
@@ -327,6 +346,14 @@ mod tests {
       assert!(y_2.approx_eq(expected_2, EPSILON));
     }
   }
+
+  /// ```should_panic
+  /// use aberth::aberth;
+  ///
+  /// let y = [];
+  /// let dydx = aberth(&y, 0.1);
+  /// ```
+  fn _aberth_empty_array() {}
 
   #[test]
   fn aberth() {
