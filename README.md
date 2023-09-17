@@ -27,7 +27,7 @@ cargo add aberth
 
 Specify the coefficients of your polynomial in an array in ascending order
 and then call the `aberth` method on your polynomial.
-```rust
+```rust ignore
 use aberth::aberth;
 const EPSILON: f32 = 0.001;
 

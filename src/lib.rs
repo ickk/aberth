@@ -4,7 +4,7 @@
 
 use arrayvec::ArrayVec;
 use core::iter::zip;
-use num_complex::Complex;
+use num_complex::{Complex, ComplexFloat};
 use num_traits::{
   cast,
   float::{Float, FloatConst},
@@ -24,7 +24,7 @@ pub fn aberth<
   const TERMS: usize,
   F: Float + FloatConst + MulAdd<Output = F>,
 >(
-  polynomial: &[F; TERMS],
+  polynomial: &[Complex<F>; TERMS],
   epsilon: F,
 ) -> Result<ArrayVec<Complex<F>, TERMS>, &'static str> {
   let dydx = &derivative(polynomial);
@@ -72,13 +72,13 @@ fn initial_guesses<
   const TERMS: usize,
   F: Float + FloatConst + MulAdd<Output = F>,
 >(
-  polynomial: &[F; TERMS],
+  polynomial: &[Complex<F>; TERMS],
 ) -> ArrayVec<Complex<F>, TERMS> {
   // the degree of the polynomial
   let n = polynomial.len() - 1;
-  let n_f = unsafe { cast(n).unwrap_unchecked() };
+  let n_f: F = unsafe { cast(n).unwrap_unchecked() };
   // convert polynomial to monic form
-  let mut monic: ArrayVec<F, TERMS> = ArrayVec::new();
+  let mut monic: ArrayVec<Complex<F>, TERMS> = ArrayVec::new();
   for c in polynomial {
     // SAFETY: we push only as many values as there are terms.
     unsafe { monic.push_unchecked(*c / polynomial[n]) };
@@ -86,16 +86,16 @@ fn initial_guesses<
   // let a = - c_1 / n
   let a = -monic[n - 1] / n_f;
   // let z = w + a,
-  let p_of_w = {
+  let p_of_w: ArrayVec<Complex<F>, TERMS> = {
     // we can recycle monic on the fly.
     for coefficient_index in 0..=n {
       let c = monic[coefficient_index];
-      monic[coefficient_index] = F::zero();
+      monic[coefficient_index] = Complex::zero();
       for ((index, power), pascal) in zip(
         zip(0..=coefficient_index, (0..=coefficient_index).rev()),
         PascalRowIter::new(coefficient_index as u32),
       ) {
-        let pascal: F = unsafe { cast(pascal).unwrap_unchecked() };
+        let pascal: Complex<F> = unsafe { cast(pascal).unwrap_unchecked() };
         monic[index] =
           MulAdd::mul_add(c, pascal * a.powi(power as i32), monic[index]);
       }
@@ -107,7 +107,7 @@ fn initial_guesses<
     let mut p = p_of_w;
     // skip the last coefficient
     for i in 0..n {
-      p[i] = -p[i].abs()
+      p[i] = Complex::<F>::from(-p[i].abs());
     }
     p
   };
@@ -132,10 +132,11 @@ fn initial_guesses<
       let k_f = unsafe { cast(k).unwrap_unchecked() };
       let theta = MulAdd::mul_add(frac_2pi_n, k_f, frac_pi_2n);
 
-      let real = MulAdd::mul_add(r_0, theta.cos(), a);
+      let real = r_0 * theta.cos();
       let imaginary = r_0 * theta.sin();
 
       let val = Complex::new(real, imaginary);
+      let val = val + a;
       // SAFETY: we push 1 less values than there are terms.
       unsafe { guesses.push_unchecked(val) };
     }
@@ -187,14 +188,14 @@ impl Iterator for PascalRowIter {
 /// Polynomial of the form f(x) = a + b*x + c*x^2 + d*x^3 + ...
 ///
 /// `coefficients` is a slice containing the coefficients [a, b, c, d, ...]
-pub fn sample_polynomial<F: Float + MulAdd<Output = F>>(
-  coefficients: &[F],
+pub fn sample_polynomial<F: ComplexFloat + MulAdd<Output = F>>(
+  coefficients: &[Complex<F>],
   x: Complex<F>,
 ) -> Complex<F> {
   debug_assert!(coefficients.len() != 0);
   let mut r = Complex::zero();
-  for c in coefficients.iter().rev() {
-    r = r.mul_add(x, c.into())
+  for &c in coefficients.iter().rev() {
+    r = r.mul_add(x, c)
   }
   r
 }
@@ -205,7 +206,7 @@ pub fn sample_polynomial<F: Float + MulAdd<Output = F>>(
 ///
 /// `coefficients` is a slice containing the coefficients [a, b, c, d, ...]
 /// starting from the coefficient of the x with degree 0.
-pub fn derivative<const TERMS: usize, F: Float>(
+pub fn derivative<const TERMS: usize, F: ComplexFloat>(
   coefficients: &[F; TERMS],
 ) -> ArrayVec<F, TERMS> {
   debug_assert!(coefficients.len() != 0);
@@ -305,6 +306,7 @@ mod tests {
 
     {
       let y = [0., 1., 2., 3., 4.];
+      let y = y.map(|c| c.into());
 
       let x_0 = 0.0.into();
       let y_0 = sample_polynomial(&y, x_0);
@@ -329,6 +331,7 @@ mod tests {
 
     {
       let y = [19., 2.3, 0., 8.3, 69.420];
+      let y = y.map(|c| c.into());
 
       let x_0 = 0.0.into();
       let y_0 = sample_polynomial(&y, x_0);
@@ -361,12 +364,16 @@ mod tests {
 
     {
       let polynomial = [0., 1.];
+      let polynomial = polynomial.map(|c| Complex::from(c));
+
       let roots = aberth(&polynomial, EPSILON).unwrap();
       assert!(roots[0].approx_eq(Complex::zero(), EPSILON));
     }
 
     {
       let polynomial = [1., 0., -1.];
+      let polynomial = polynomial.map(|c| Complex::from(c));
+
       let roots = aberth(&polynomial, EPSILON).unwrap();
       let expected = [1.0.into(), (-1.0).into()];
       assert!(unsorted_compare(&roots, &expected, EPSILON));
@@ -375,6 +382,7 @@ mod tests {
     {
       // x^3 -12x^2 + 39x - 28 = 0
       let polynomial = [-28., 39., -12., 1.];
+      let polynomial = polynomial.map(|c| Complex::from(c));
 
       let roots = aberth(&polynomial, EPSILON).unwrap();
       let expected = [7.0.into(), 4.0.into(), 1.0.into()];
@@ -383,6 +391,7 @@ mod tests {
     {
       // 2x^3 - 38x^2 + 228x - 432 = 0
       let polynomial = [-432., 228., -38., 2.];
+      let polynomial = polynomial.map(|c| Complex::from(c));
 
       let roots = aberth(&polynomial, EPSILON).unwrap();
       let expected = [9.0.into(), 6.0.into(), 4.0.into()];
@@ -391,6 +400,7 @@ mod tests {
     {
       // x^3 + 8 = 0
       let polynomial = [8., 0., 0., 1.];
+      let polynomial = polynomial.map(|c| Complex::from(c));
 
       let roots = aberth(&polynomial, EPSILON).unwrap();
       let expected = [
@@ -403,6 +413,7 @@ mod tests {
     {
       // 11x^9 + 4x^4 + 2x - 1 = 0
       let polynomial = [-1., 2., 0., 0., 4., 0., 0., 0., 0., 11.];
+      let polynomial = polynomial.map(|c| Complex::from(c));
 
       let roots = aberth(&polynomial, EPSILON).unwrap();
       let expected = [
@@ -427,6 +438,7 @@ mod tests {
         1., -2., 3., -4., 5., -6., 7., -8., 9., -10., 11., -12., 13., -14.,
         15., -16., 17., -18., 19., -20.,
       ];
+      let polynomial = polynomial.map(|c| Complex::from(c));
 
       let roots = aberth(&polynomial, EPSILON).unwrap();
       // found using wolfram alpha
@@ -467,6 +479,7 @@ mod tests {
         1., -2., 3., -4., 5., -6., 7., -8., 9., -10., 11., -12., 13., -14.,
         15., -16., 17., -18., 19., -20.,
       ];
+      let polynomial = polynomial.map(|c| Complex::from(c));
 
       let roots = aberth(&polynomial, EPSILON_64).unwrap();
       let expected = [
