@@ -18,5 +18,5 @@ num-traits = { version = "0.2", default-features = false }
 
 [features]
 default = ["std"]
-std = ["arrayvec/default", "num-complex/default", "num-traits/default"]
-libm = ["num-traits/libm"]
+std = ["num-traits/default", "num-complex/default"]
+libm = ["num-traits/libm", "num-complex/libm"]
