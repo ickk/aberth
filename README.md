@@ -1,5 +1,6 @@
 aberth
 ======
+[crates.io](https://crates.io/crates/aberth) | [docs.rs](https://docs.rs/aberth)
 
 An implementation of the
 [Aberth-Ehrlich method](https://en.wikipedia.org/wiki/Aberth_method)
@@ -12,7 +13,7 @@ converges linearly for zeros of multiplicity).
 
 This crate is `#![no_std]` and tries to have minimal dependencies. It uses
 [arrayvec](https://crates.io/crates/arrayvec) to avoid allocations, which will
-be removed in the future when rust stabilises support for const-generics.
+be removed when rust stabilises support for const-generics.
 
 
 Usage
@@ -76,8 +77,7 @@ for polynomial in [a, b] {
 
 Note that the returned values are not sorted in any particular order.
 
-The coefficient of the highest degree term should not be zero or you will get
-nonsense extra roots (probably at 0 + 0j).
+The coefficient of the highest degree term should not be zero.
 
 
 `#![no_std]`
