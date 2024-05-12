@@ -2,18 +2,20 @@
 #![cfg_attr(not(any(feature = "std", test, doctest)), no_std)]
 
 pub mod internal;
-use internal::*;
-pub use num_complex::Complex;
-
 #[cfg(any(test, doctest))]
 mod tests;
 
-use arrayvec::ArrayVec;
-use core::{fmt::Debug, ops::Deref};
-use num_traits::{
-  float::{Float, FloatConst},
-  identities::Zero,
-  MulAdd,
+pub use ::num_complex::Complex;
+
+use {
+  crate::internal::*,
+  ::arrayvec::ArrayVec,
+  ::core::{fmt::Debug, ops::Deref},
+  ::num_traits::{
+    float::{Float, FloatConst},
+    identities::Zero,
+    MulAdd,
+  },
 };
 
 /// Find all of the roots of a polynomial using Aberth's method
@@ -111,15 +113,16 @@ pub use feature_std::AberthSolver;
 
 #[cfg(feature = "std")]
 mod feature_std {
-  use super::Roots;
-  use crate::internal::*;
-  use core::fmt::Debug;
-  use num_complex::Complex;
-  use num_traits::{
-    cast,
-    float::{Float, FloatConst},
-    identities::Zero,
-    MulAdd,
+  use {
+    crate::{internal::*, Roots},
+    ::core::fmt::Debug,
+    ::num_complex::Complex,
+    ::num_traits::{
+      cast,
+      float::{Float, FloatConst},
+      identities::Zero,
+      MulAdd,
+    },
   };
 
   impl<F: Clone> Roots<&[Complex<F>]> {
