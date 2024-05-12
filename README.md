@@ -55,6 +55,26 @@ The above method does not require any allocation, instead doing all the
 computation on the stack. It is generic over any size of polynomial, but the
 size of the polynomial must be known at compile time.
 
+The coefficients of the polynomial may be `f32`, `f64`, or even complex numbers
+`Complex<f32>`, `Complex<f64>`:
+```rust
+# use aberth::{aberth, Complex};
+#
+# let p1 = [1_f32, 2_f32];
+# let r1 = aberth(&p1, 10, 0.001);
+#
+# let p2 = [1_f64, 2_f64];
+# let r2 = aberth(&p2, 10, 0.001);
+#
+# let p3 = [Complex::new(1_f32, 2_f32), Complex::new(3_f32, 4_f32)];
+# let r3 = aberth(&p3, 10, 0.001);
+#
+# const MAX_ITERATIONS: u32 = 10;
+# const EPSILON: f64 = 0.001;
+let polynomial = [Complex::new(1_f64, 2_f64), Complex::new(3_f64, 4_f64)];
+let roots = aberth(&polynomial, MAX_ITERATIONS, EPSILON);
+```
+
 If `std` is available then there is also an `AberthSolver` struct which
 allocates some memory to support dynamically sized polynomials at run time.
 This may also be good to use when you are dealing with polynomials with many
