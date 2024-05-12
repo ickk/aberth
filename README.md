@@ -110,7 +110,7 @@ To use in a `no_std` environment you must disable `default-features` and enable
 the `libm` feature:
 ```toml
 [dependencies]
-aberth = { version = "0.0.4", default-features = false, features = ["libm"] }
+aberth = { version = "0.4.1", default-features = false, features = ["libm"] }
 ```
 
 Stability Guarantees
