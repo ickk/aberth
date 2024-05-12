@@ -114,42 +114,42 @@ fn sample_polynomial() {
 fn pascal_triangle() {
   {
     let row: Vec<_> = PascalRowIter::new(0).collect();
-    let expected = [1];
+    let expected = [1.];
     assert_eq!(row, expected);
   }
   {
     let row: Vec<_> = PascalRowIter::new(1).collect();
-    let expected = [1, 1];
+    let expected = [1., 1.];
     assert_eq!(row, expected);
   }
   {
     let row: Vec<_> = PascalRowIter::new(2).collect();
-    let expected = [1, 2, 1];
+    let expected = [1., 2., 1.];
     assert_eq!(row, expected);
   }
   {
     let row: Vec<_> = PascalRowIter::new(3).collect();
-    let expected = [1, 3, 3, 1];
+    let expected = [1., 3., 3., 1.];
     assert_eq!(row, expected);
   }
   {
     let row: Vec<_> = PascalRowIter::new(4).collect();
-    let expected = [1, 4, 6, 4, 1];
+    let expected = [1., 4., 6., 4., 1.];
     assert_eq!(row, expected);
   }
   {
     let row: Vec<_> = PascalRowIter::new(5).collect();
-    let expected = [1, 5, 10, 10, 5, 1];
+    let expected = [1., 5., 10., 10., 5., 1.];
     assert_eq!(row, expected);
   }
   {
     let row: Vec<_> = PascalRowIter::new(6).collect();
-    let expected = [1, 6, 15, 20, 15, 6, 1];
+    let expected = [1., 6., 15., 20., 15., 6., 1.];
     assert_eq!(row, expected);
   }
   {
     let row: Vec<_> = PascalRowIter::new(9).collect();
-    let expected = [1, 9, 36, 84, 126, 126, 84, 36, 9, 1];
+    let expected = [1., 9., 36., 84., 126., 126., 84., 36., 9., 1.];
     assert_eq!(row, expected);
   }
 }

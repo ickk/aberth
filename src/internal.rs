@@ -122,9 +122,10 @@ pub(crate) fn initial_guesses<
       monic[coefficient_index] = Complex::zero();
       for ((index, power), pascal) in zip(
         zip(0..=coefficient_index, (0..=coefficient_index).rev()),
-        PascalRowIter::new(coefficient_index as u64),
+        PascalRowIter::new(coefficient_index as u32),
       ) {
-        // SAFETY: it's possible to cast any u64 to a float
+        // SAFETY: it's possible to cast any f64 to a float (including f32,
+        // which will result in infinity if the value exceeds f32::MAX)
         let pascal: Complex<F> = unsafe { cast(pascal).unwrap_unchecked() };
         monic[index] =
           MulAdd::mul_add(c, pascal * a.powi(power as i32), monic[index]);
@@ -172,36 +173,36 @@ pub(crate) fn initial_guesses<
 
 /// An iterator over the numbers in a row of Pascal's Triangle.
 pub(crate) struct PascalRowIter {
-  n: u64,
-  k: u64,
-  previous: u64,
+  n: u32,
+  k: u32,
+  previous: f64,
 }
 
 impl PascalRowIter {
   /// Create an iterator yielding the numbers in the nth row of Pascal's
   /// triangle.
-  pub fn new(n: u64) -> Self {
+  pub fn new(n: u32) -> Self {
     Self {
       n,
       k: 0,
-      previous: 1,
+      previous: 1.0,
     }
   }
 }
 
 impl Iterator for PascalRowIter {
-  type Item = u64;
+  type Item = f64;
 
   fn next(&mut self) -> Option<Self::Item> {
     if self.k == 0 {
       self.k = 1;
-      self.previous = 1;
-      return Some(1);
+      self.previous = 1.0;
+      return Some(1.0);
     }
     if self.k > self.n {
       return None;
     }
-    let new = self.previous * (self.n + 1 - self.k) / self.k;
+    let new = self.previous * (self.n + 1 - self.k) as f64 / self.k as f64;
     self.k += 1;
     self.previous = new;
     Some(new)
