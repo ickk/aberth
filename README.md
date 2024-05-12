@@ -1,19 +1,22 @@
 aberth
 ======
-[crates.io](https://crates.io/crates/aberth) | [docs.rs](https://docs.rs/aberth)
+[crates.io](https://crates.io/crates/aberth) |
+[docs.rs](https://docs.rs/aberth) |
+[github](https://github.com/ickk/aberth)
 
 An implementation of the
 [Aberth-Ehrlich method](https://en.wikipedia.org/wiki/Aberth_method)
 for finding the zeros of a polynomial.
 
 Aberth's method uses an electrostatics analogy to model the approximations as
-negative charges and the true zeros as positive charges. This enables
-finding all complex roots simultaneously, converging cubically (worst-case it
-converges linearly for zeros of multiplicity).
+negative charges and the true zeros as positive charges. This enables finding
+all complex roots simultaneously, converging cubically (worst-case it converges
+linearly for zeros of multiplicity).
 
 This crate is `#![no_std]` and tries to have minimal dependencies. It uses
-[arrayvec](https://crates.io/crates/arrayvec) to avoid allocations, which will
-be removed when rust stabilises support for const-generics.
+[arrayvec](https://crates.io/crates/arrayvec)
+to avoid allocations, which will be removed when rust stabilises support for
+const-generics.
 
 
 Usage
@@ -24,8 +27,8 @@ Add it to your project:
 cargo add aberth
 ```
 
-Specify the coefficients of your polynomial in an array in ascending order
-and then call the `aberth` method on your polynomial.
+Specify the coefficients of your polynomial in an array in ascending order and
+then call the `aberth` method on your polynomial.
 ```rust
 use aberth::aberth;
 const EPSILON: f32 = 0.001;
@@ -51,6 +54,26 @@ let roots = aberth(&polynomial, MAX_ITERATIONS, EPSILON);
 The above method does not require any allocation, instead doing all the
 computation on the stack. It is generic over any size of polynomial, but the
 size of the polynomial must be known at compile time.
+
+The coefficients of the polynomial may be `f32`, `f64`, or even complex numbers
+`Complex<f32>`, `Complex<f64>`:
+```rust
+# use aberth::{aberth, Complex};
+#
+# let p1 = [1_f32, 2_f32];
+# let r1 = aberth(&p1, 10, 0.001);
+#
+# let p2 = [1_f64, 2_f64];
+# let r2 = aberth(&p2, 10, 0.001);
+#
+# let p3 = [Complex::new(1_f32, 2_f32), Complex::new(3_f32, 4_f32)];
+# let r3 = aberth(&p3, 10, 0.001);
+#
+# const MAX_ITERATIONS: u32 = 10;
+# const EPSILON: f64 = 0.001;
+let polynomial = [Complex::new(1_f64, 2_f64), Complex::new(3_f64, 4_f64)];
+let roots = aberth(&polynomial, MAX_ITERATIONS, EPSILON);
+```
 
 If `std` is available then there is also an `AberthSolver` struct which
 allocates some memory to support dynamically sized polynomials at run time.
@@ -90,12 +113,25 @@ the `libm` feature:
 aberth = { version = "0.0.4", default-features = false, features = ["libm"] }
 ```
 
+Stability Guarantees
+--------------------
+
+**`mod internal` may experience breaking changes even in minor and patch
+releases**:
+
+We expose the `internal` module, for those interested in supplying their own
+initial guesses to `internal::aberth_raw`. However this `internal` module is
+considered an implementation detail and does not follow the semantic versioning
+scheme of the rest of the project.
+
 
 License
 -------
 
-This crate is dual-licensed under either of
-[Apache license, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0)
+This crate is licensed under any of the
+[Apache license, Version 2.0](./LICENSE-APACHE),
 or the
-[MIT license](http://opensource.org/licenses/MIT)
+[MIT license](./LICENSE-MIT),
+or the
+[Zlib license](./LICENSE-ZLIB)
 at your option.

@@ -1,11 +1,21 @@
-use super::StopReason;
-use core::{fmt::Debug, iter::zip};
-use num_complex::{Complex, ComplexFloat};
-use num_traits::{
-  cast,
-  float::{Float, FloatConst},
-  identities::{One, Zero},
-  MulAdd,
+//! The `internal` module may experience breaking changes even in minor and
+//! patch releases.
+//!
+//! This module is exposed for those interested in supplying their own initial
+//! guesses to the `aberth_raw` function. However this `internal` module is
+//! considered an implementation detail and does not follow the semantic
+//! versioning scheme of the rest of the project.
+
+use {
+  crate::StopReason,
+  ::core::{fmt::Debug, iter::zip},
+  ::num_complex::{Complex, ComplexFloat},
+  ::num_traits::{
+    cast,
+    float::{Float, FloatConst},
+    identities::{One, Zero},
+    MulAdd,
+  },
 };
 
 /// Find all of the roots of a polynomial using Aberth's method.

@@ -1,5 +1,4 @@
-use crate::*;
-use num_complex::ComplexFloat;
+use {crate::*, ::num_complex::ComplexFloat};
 
 const EPSILON: f32 = 0.000_05;
 const EPSILON_64: f64 = 0.000_000_000_005;
@@ -164,7 +163,7 @@ fn _aberth_empty_array() {}
 
 #[test]
 fn aberth() {
-  use super::*;
+  use super::aberth;
 
   {
     let polynomial = [0., 1.];
