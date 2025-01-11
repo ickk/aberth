@@ -158,7 +158,11 @@ pub(crate) fn initial_guesses<
     if s_at_r0.re > F::zero() {
       break int;
     }
+    let int_old = int;
     int = int + F::one();
+    if int == int_old {
+      break int;
+    }
   };
 
   {
